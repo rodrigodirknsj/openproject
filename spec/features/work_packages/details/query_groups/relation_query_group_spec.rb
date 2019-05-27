@@ -123,6 +123,7 @@ describe 'Work package with relation query group', js: true, selenium: true do
     it 'creates and removes across all tables' do
       embedded_table.table_container.find('a', text: I18n.t('js.relation_buttons.create_new')).click
       subject_field = embedded_table.edit_field(nil, :subject)
+
       subject_field.expect_active!
       subject_field.set_value("Fresh WP\n")
 

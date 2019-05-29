@@ -34,18 +34,16 @@ module WorkPackages
   class BaseContract < ::ModelContract
     include ::Attachments::ValidateReplacements
 
-    def self.model
-      WorkPackage
-    end
-
     attribute :subject
     attribute :description
     attribute :status_id
     attribute :type_id
     attribute :priority_id
     attribute :category_id
-    attribute :fixed_version_id do
+    attribute :fixed_version_id,
+              permission: :assign_versions do
       validate_fixed_version_is_assignable
+      validate_fixed_version_permission
     end
 
     validate :validate_no_reopen_on_closed_version
@@ -100,6 +98,8 @@ module WorkPackages
                 model.leaf?
               }
 
+    default_attribute_permission :edit_work_packages
+
     validates :due_date,
               date: { after_or_equal_to: :start_date,
                       message: :greater_than_or_equal_to_start_date,
@@ -128,13 +128,15 @@ module WorkPackages
     end
 
     def writable_attributes
+      ret = super
+
       # If we're in a readonly status and did not move into that status right now
       # only allow other status transitions
       if model.readonly_status? && !model.status_id_change
-        return %w[status status_id]
+        ret &= %w(status status_id)
       end
 
-      super + model.available_custom_fields.map { |cf| "custom_field_#{cf.id}" }
+      ret
     end
 
     private
@@ -203,6 +205,12 @@ module WorkPackages
         errors.add :category, :does_not_exist
       elsif category_not_of_project?
         errors.add :category, :only_same_project_categories_allowed
+      end
+    end
+
+    def validate_fixed_version_permission
+      if model.fixed_version_id_changed? && !@can.allowed?(model, :assign_version)
+        errors.add :fixed_version_id, :error_unauthorized
       end
     end
 
